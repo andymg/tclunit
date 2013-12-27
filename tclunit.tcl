@@ -22,6 +22,11 @@
 #
 #  Matthias Kraft
 #  June 12, 2012
+#  
+#  Andy meng
+#  2013-12-28
+#  remove tcltest method, add new running and timing count 
+#  For TN MIB function testing 
 #
 #-----------------------------------------------------------
 
@@ -272,6 +277,9 @@ proc tclunit::run_all_tests {testdirectory} {
     init_for_tests
     set ::tests [lsort [glob -directory $testdirectory *.tcl]]
     foreach test $::tests {
+    if {[string match "*init*" $test]} {
+    	continue
+    }
     set testScript {
 	set ::env(TCLTEST_OPTIONS) [list $rt(testconfig)]
 	cd "$testdirectory"
@@ -314,6 +322,7 @@ proc tclunit::run_test_file {testfile} {
     set rt(testdirectory) [file dirname $testfile]
     set rt(phase) "tests"
     do_run_tests $testScript
+    set rt(finished_file) 1
 }
 
 #-----------------------------------------------------------
@@ -446,10 +455,10 @@ proc tclunit::capture_test_output {chan} {
 	    # A test case failed (starts capturing mode).
 	    test_failed $line
 	    return
+	} elseif {[string match "======*" $line]} {
+		# skip ====* style log info
+	    return
 
-	# } elseif {[finished_tests $line]} {
-	#     # Logged tests finished time stamp.
-	#     return
 	} else {
 		test_log $line
 		return 
@@ -789,16 +798,16 @@ proc tclunit::test_properties {line} {
     }
 
     set found 0
- #    foreach property $known_props {
-	# if {[string match "${property}*" $line]} {
-	#     set found 1
-	#     set value [string range $line [string length $property] end]
-	#     if {$value eq ""} {
-	# 	set value true
-	#     }
-	#     break
-	# }
- #    }
+    foreach property $known_props {
+	if {[string match "${property}*" $line]} {
+	    set found 1
+	    set value [string range $line [string length $property] end]
+	    if {$value eq ""} {
+		set value true
+	    }
+	    break
+	}
+    }
     if {!$found} {
 	return 0
 
@@ -888,7 +897,6 @@ proc tclunit::finished_tests {line} {
     }
 
     set rt(phase) "end"
-
     set datetime [string range $line [string length $timeprefix(end)] end]
     set cto(tests_finished) [convert_datetime $datetime]
     return 1

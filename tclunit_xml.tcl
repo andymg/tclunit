@@ -19,6 +19,7 @@ package require tclunit 1.1
 
 namespace eval tclunit_xml {
     variable openedTags {} ;# list of tags to close
+    variable suitename ""
 }
 
 proc tclunit_xml::escape_xml {text} {
@@ -27,10 +28,13 @@ proc tclunit_xml::escape_xml {text} {
 
 proc tclunit_xml::new_testsuite {filename} {
     variable openedTags
+    variable suitename
+
+    set suitename [get_module [lindex [split [file rootname [file tail $filename]] "."] 0]]
 
     close_tags
 
-    puts [format {<testsuite name="%s">} [file rootname [file tail $filename]]]
+    puts [format {<testsuite name="%s">} $suitename]
     lappend openedTags testsuite
 }
 
@@ -45,27 +49,32 @@ proc tclunit_xml::close_tags {} {
 }
 
 proc tclunit_xml::testcase_skipped {filename testcase reason} {
-    puts [format {<testcase name="%s" classname="%s">} \
-	$testcase [lindex [file split $filename] end-1]]]
+    variable suitename
+    puts [format {<testcase name="%s:%s" classname="%s">} \
+	$suitename $testcase $suitename]
     puts [format {<skipped type="CASE_SKIPPED">%s</skipped>} [escape_xml $reason]]
     puts "</testcase>"
 }
 
 proc tclunit_xml::testcase_passed {filename testcase report {time 0}} {
-    puts [format {<testcase name="%s" classname="%s" time="%s">} \
-	$testcase [lindex [file split $filename] end-1] $time]
+    variable suitename
+
+    puts [format {<testcase name="%s:%s" classname="%s" time="%s">} \
+	$suitename $testcase $suitename $time]
     puts [format {<passed type="CASE_PASSED">%s</passed>} [escape_xml $report]]
     puts "</testcase>"
 }
 
 proc tclunit_xml::testcase_start {filename testcase {time 0}} {
-    puts [format {<testcase name="%s" classname="%s"/>} \
-    $testcase [lindex [file split $filename] end-1]]
+    variable suitename
+    puts [format {<testcase name="%s:%s" classname="%s"/>} \
+    $suitename $testcase $suitename]
 }
 
 proc tclunit_xml::testcase_failed {filename testcase report {time 0}} {
-    puts [format {<testcase name="%s" classname="%s" time="%s">} \
-	$testcase [lindex [file split $filename] end-1] $time]
+    variable suitename
+    puts [format {<testcase name="%s:%s" classname="%s" time="%s">} \
+	$suitename $testcase $suitename $time]
     puts [format {<failure type="CASE_FAILED" message="%s FAILED">%s</failure>} \
 	$testcase [escape_xml $report]]
     puts "</testcase>"
@@ -84,6 +93,20 @@ proc tclunit_xml::property {name value} {
 proc tclunit_xml::log { value } {
     puts ">>>>>>>>>>>>> $value"
 }
+
+proc tclunit_xml::get_module { value } {
+    set module(2) "VLAN"
+    set module(11) "MVR"
+    set module(13) "ARPInspec"
+    set module(7) "LLDP"
+
+    if {![info exists module($value)]} {
+        set ret "module $value" 
+    } else {
+        set ret $module($value)
+    }
+}
+
 proc tclunit_xml::main {args} {
     tclunit::configure \
 	event init [namespace code close_tags] \

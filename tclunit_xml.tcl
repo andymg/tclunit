@@ -13,7 +13,9 @@
 #-----------------------------------------------------------
 # XML converter for tclunit
 
+append auto_path " /home/andym/git/tclunit"
 package require tclunit 1.1
+#source /home/andym/git/tclunit/tclunit/tclunit.tcl
 
 namespace eval tclunit_xml {
     variable openedTags {} ;# list of tags to close
@@ -44,19 +46,26 @@ proc tclunit_xml::close_tags {} {
 
 proc tclunit_xml::testcase_skipped {filename testcase reason} {
     puts [format {<testcase name="%s" classname="%s">} \
-	$testcase [file rootname [file tail $filename]]]
+	$testcase [lindex [file split $filename] end-1]]]
     puts [format {<skipped type="CASE_SKIPPED">%s</skipped>} [escape_xml $reason]]
     puts "</testcase>"
 }
 
-proc tclunit_xml::testcase_passed {filename testcase {time 0}} {
+proc tclunit_xml::testcase_passed {filename testcase report {time 0}} {
+    puts [format {<testcase name="%s" classname="%s" time="%s">} \
+	$testcase [lindex [file split $filename] end-1] $time]
+    puts [format {<passed type="CASE_PASSED">%s</passed>} [escape_xml $report]]
+    puts "</testcase>"
+}
+
+proc tclunit_xml::testcase_start {filename testcase {time 0}} {
     puts [format {<testcase name="%s" classname="%s"/>} \
-	$testcase [file rootname [file tail $filename]]]
+    $testcase [lindex [file split $filename] end-1]]
 }
 
 proc tclunit_xml::testcase_failed {filename testcase report {time 0}} {
-    puts [format {<testcase name="%s" classname="%s">} \
-	$testcase [file rootname [file tail $filename]]]
+    puts [format {<testcase name="%s" classname="%s" time="%s">} \
+	$testcase [lindex [file split $filename] end-1] $time]
     puts [format {<failure type="CASE_FAILED" message="%s FAILED">%s</failure>} \
 	$testcase [escape_xml $report]]
     puts "</testcase>"
@@ -72,6 +81,9 @@ proc tclunit_xml::property {name value} {
     puts [format {<property name="%s" value="%s"/>} [escape_xml $name] [escape_xml $value]]
 }
 
+proc tclunit_xml::log { value } {
+    puts ">>>>>>>>>>>>> $value"
+}
 proc tclunit_xml::main {args} {
     tclunit::configure \
 	event init [namespace code close_tags] \
@@ -79,12 +91,14 @@ proc tclunit_xml::main {args} {
 	event skipped [namespace code testcase_skipped] \
 	event passed [namespace code testcase_passed] \
 	event failed [namespace code testcase_failed] \
-	event property [namespace code property]
+	event property [namespace code property] \
+    event log [namespace code log]
 
     puts "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
     puts "<testsuites>"
     foreach path $args {
 	tclunit::run_tests $path
+    
     }
     close_tags
     puts "</testsuites>"
